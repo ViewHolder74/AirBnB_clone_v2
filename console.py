@@ -10,6 +10,10 @@ from models.state import State
 from models.city import City
 from models.amenity import Amenity
 from models.review import Review
+import re
+import os
+import uuid
+from datetime import datetime
 
 
 class HBNBCommand(cmd.Cmd):
@@ -114,7 +118,8 @@ class HBNBCommand(cmd.Cmd):
         pass
 
     def do_create(self, args):
-        """ Create an object of any class"""
+        """
+        Create an object of any class
         if not args:
             print("** class name missing **")
             return
@@ -125,6 +130,57 @@ class HBNBCommand(cmd.Cmd):
         storage.save()
         print(new_instance.id)
         storage.save()
+        """
+
+        """ Create an object of any class"""
+        all_attr = ('id', 'created_at', 'updated_at', '__class__')
+        class_name = ''
+        class_pat = r'(?P<name>(?:[a-zA-Z]|_)(?:[a-zA-Z]|\d|_)*)'
+        class_match = re.match(class_pat, args)
+        objects = {}
+        # find the right Command syntax
+        if class_match is not None:
+            class_name = class_match.group('name')
+            str_param = args[len(class_name):].strip()
+            params = str_param.split(' ')
+            str_pat = r'(?P<t_str>"([^"]|\")*")'
+            fp_pat = r'(?P<t_float>[-+]?\d+\.\d+)'
+            int_pat = r'(?P<t_int>[-+]?\d+)'
+            full_pat = '{}=({}|{}|{})'.format(class_pat, str_pat,
+                                              fp_pat, int_pat)
+            # check syntax of key and value pairs
+            for param in params:
+                param_match = re.fullmatch(full_pat, param)
+                if param_match is not None:
+                    key = param_match.group('name')
+                    str_value = param_match.group('t_str')
+                    fp_value = param_match.group('t_float')
+                    int_value = param_match.group('t_int')
+                    # address the string value syntax
+                    if str_value is not None:
+                        objects[key] = str_value[1:-1].replace('_', ' ')
+                    # address the floating point value syntax
+                    if fp_value is not None:
+                        objects[key] = float(fp_value)
+                    # address the integer value syntax
+                    if int_value is not None:
+                        objects[key] = int(int_value)
+        else:
+            class_name = args
+        if not class_name:
+            print("** class name missing **")
+            return
+        elif class_name not in HBNBCommand.classes:
+            print("** class doesn't exist **")
+            return
+        else:
+            # save to filestorage
+            new_attr = HBNBCommand.classes[class_name]()
+            for key, value in objects.items():
+                if key not in all_attr:
+                    setattr(new_attr, key, value)
+            new_attr.save()
+            print(new_attr.id)
 
     def help_create(self):
         """ Help information for the create method """
